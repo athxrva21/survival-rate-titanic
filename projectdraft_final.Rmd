@@ -1,0 +1,210 @@
+---
+title: "STAT 240 Project"
+output: html_document
+date: "2024-12-04"
+---
+
+```{r setup, include=FALSE, echo=FALSE}
+knitr::opts_chunk$set(echo = TRUE, message = FALSE,
+                      warning = FALSE, error = TRUE,
+                      fig.height = 3)
+library(tidyverse)
+source("../scripts/ggprob.R")
+titanic <- read_csv("../data/titanic_2.csv")
+
+```
+
+Question of interest: Was there a difference in the survival rate between first class and second class passengers in the titanic
+
+Introduction-
+The sinking of the RMS Titanic in April 1912 remains one of the most tragic and well-documented maritime disasters in history, with over 1,500 lives lost. 
+
+Among the many factors influencing survival, socioeconomic status—indicated by passenger class—has garnered significant attention. 
+
+The Titanic's passenger list was stratified into first, second, and third-class accommodations, reflecting societal hierarchies of the early 20th century. 
+
+The differential access to lifeboats and safety measures based on class status raises questions about the fairness and equity of survival opportunities. 
+
+This study seeks to explore whether there was a significant difference in the survival rates of first-class and second-class passengers. 
+
+By analyzing historical passenger data, this research aims to quantify survival disparities and investigate potential reasons behind them, such as location of cabins, access to lifeboats, and social norms prioritizing wealthier individuals. 
+
+Understanding these differences not only sheds light on the historical events of the Titanic but also offers broader insights into the interplay between privilege and survival during emergencies. 
+
+Hypothesis: We find strong evidence to conclude that the survival rate of first class passengers was more than the survival rate of second class passengers
+
+Background-
+
+Dataset source: https://github.com/awesomedata/awesome-public-datasets/blob/master/Datasets/titanic.csv.zip
+This dataset was incubated at OMNILab, Shanghai Jiao Tong University during Xiaming Chen’s Ph.D. studies and was collected using blogs, answers and user responses.
+
+As mentioned above, the class of the passenger also affected the access to safety and lifeboats. 
+
+Thus, it makes sense that there should be a difference in the proportion of first class passengers that survived and second class passengers.
+
+
+There seem to be no unusual factors in the data and there was a total of 891 data points.
+
+
+The data contains information about the id, whether they survived or not, their class, name, sex, age, cabin(including some unfound points), ticket price etc. 
+
+Out of this, we chose to keep the passenger class and whether a passenger survived or not, where 1 indicates that they did survive and 0 shows otherwise.
+
+
+ 
+```{r, echo=FALSE}
+
+tot_survived = titanic %>% group_by(Pclass) %>% summarise(alive = sum(Survived), prop_alive = alive/n())
+
+```
+
+
+```{r, echo=FALSE}
+ggplot(tot_survived, aes(x = factor(Pclass), y = prop_alive, fill = factor(Pclass))) +
+  geom_bar(stat = "identity") +
+  labs(title = "Proportion of passengers survived from each class",
+       x = "passenger class",
+       y = "proportion of passengers that survived",
+       fill = "Pclass") +
+  theme_minimal()
+```
+
+The graph above shows the proportion of passengers that survived, allowing the reader to guess that the proportion of passengers that survived in first class should be more than second class.
+
+Statistical Analysis
+
+The parameter of interest is the difference in survival proportions between first-class and second-class passengers ($\tilde{p}_1$ - $\tilde{p}_2$) on the Titanic, with $\tilde{p}_1$ and $\tilde{p}_2$ representing the adjusted survival proportions for first-class and second-class passengers, respectively. 
+
+The Agresti-Caffo adjustment was applied to improve confidence interval estimation, particularly suitable given the dataset's moderate size. 
+
+A one-tailed test was conducted to evaluate whether first-class passengers had a higher survival proportion than second-class passengers. 
+
+The assumptions for the test include independence of observations and sufficiently large sample sizes to approximate normality, both of which are reasonable given the nature of the dataset. 
+
+The null hypothesis ($H_0$) states that there is no difference in survival proportions between the groups ($\tilde{p}_1$ - $\tilde{p}_2$ = 0), while the alternative hypothesis ($H_A$) posits that first-class passengers had a higher survival proportion ($\tilde{p}_1$ - $\tilde{p}_2$ > 0). 
+
+A 95% confidence interval was constructed for the difference in proportions, with the results indicating whether the survival disparity is statistically significant. 
+
+Based on the BINS assumptions, the Binary assumption is met (survival is a success). 
+
+The Independent assumption is not met (since as passengers get into life boats, less passengers can reach them). 
+
+The sample size is fixed for each class, fitting the N assumption. 
+
+Last, the S assumption is also not met since women and children were given first preference, but we are assuming that the relative proportion of each class surviving is consistent.
+
+Interval
+
+```{r, echo=FALSE}
+x1 <- sum(titanic$Survived[titanic$Pclass == 1])
+n1 <- sum(titanic$Pclass == 1)
+x2 <- sum(titanic$Survived[titanic$Pclass == 2])
+n2 <- sum(titanic$Pclass == 2)
+alpha <- 0.95
+
+ntilde1 <- n1 + 2
+ntilde2 <- n2 + 2
+ptilde1 <- (x1 + 1) / ntilde1
+ptilde2 <- (x2 + 1) / ntilde2
+
+pe <- ptilde1 - ptilde2
+
+se1 <- sqrt(ptilde1 * (1 - ptilde1) / ntilde1)
+se2 <- sqrt(ptilde2 * (1 - ptilde2) / ntilde2)
+se <- sqrt(se1^2 + se2^2)
+
+z <- qnorm(alpha + (1 - alpha) / 2)
+moe <- z * se
+
+left <- pe - moe
+right <- pe + moe
+c(left,right)
+
+```
+
+Hypothesis Test
+
+The parameters of interest are:
+
+p1: The true probability of survival for first-class passengers.
+
+p2: The true probability of survival for second-class passengers.
+
+x1: The number of first-class passengers who survived.
+
+n1: The total number of first-class passengers.
+
+x2: The number of second-class passengers who survived.
+
+n2: The total number of second-class passengers.
+
+
+These parameters are used to test whether the survival probability for first-class passengers (p1) is significantly greater than that for second-class passengers (p2). 
+
+The null hypothesis assumes no difference (p1=p2), while the alternative hypothesis suggests a higher survival probability for first-class passengers (p1>p2). 
+
+The test statistic and p-value are derived from these parameters to draw conclusions about the survival disparities.
+
+```{r, echo=FALSE}
+x1 <- sum(titanic$Survived[titanic$Pclass == 1])
+n1 <- sum(titanic$Pclass == 1)
+x2 <- sum(titanic$Survived[titanic$Pclass == 2])
+n2 <- sum(titanic$Pclass == 2)
+
+p1_hat <- x1 / n1
+p2_hat <- x2 / n2
+p_hat <- (x1 + x2) / (n1 + n2)
+
+numerator <- p1_hat - p2_hat
+denominator <- sqrt(p_hat * (1 - p_hat) * (1 / n1 + 1 / n2))
+test_stat <- numerator / denominator
+
+p_value <- 1 - pnorm(test_stat)
+p_value
+```
+## Results
+Hypothesis Test: The p-value obtained from the two-sample t-test indicates whether there is enough evidence to reject the null hypothesis. For this analysis, the p-value was 0.059, suggesting that the difference in survival rates is marginally significant.
+
+Confidence Interval: The 95% confidence interval for the difference in survival rates is [0.059, 0.252]. This means we are 95% confident that the true difference in survival rates lies within this range. The Agresti-Caffo adjustment was used to refine these interval estimates and ensure their reliability.## Results
+
+
+
+>Discussion
+
+Interpretation of Confidence Intervals and P-Values
+
+Our results show that we have enough evidence to conclude that there is a significant difference in survival rates between first-class and second-class passengers. 
+
+The confidence interval calculated demonstrates that the true difference in survival probabilities lies within the given range. 
+
+Specifically, we are 95% confident that this range does not include zero, indicating a robust difference in survival probability.
+
+Regarding p-values, a small p-value (e.g., smaller than 0.05 at a 95% confidence level) provides strong evidence that the observed survival difference is unlikely to be due to chance alone. 
+
+For example, if the hypothesis were that first-class passengers had a similar survival probability to second-class passengers, the low p-value would lead us to reject this hypothesis. 
+
+Alternatively, if the hypothesis were that the survival rate of first-class passengers is higher than that of second-class passengers, the p-value would strongly support this hypothesis. 
+
+These findings align with our confidence interval analysis, reinforcing the conclusion of a significant survival disparity between the two classes.
+
+Shortcomings of the Analysis
+
+Data Limitations: The dataset does not account for other potential factors influencing survival, such as age, gender, or location on the ship, which could provide a more nuanced understanding of survival disparities.
+
+Assumption Violations: Assumptions of independence and equal opportunity for survival were not entirely met, as survival was influenced by physical access to lifeboats and social norms prioritizing women and children.
+
+Historical Context: The analysis is limited to numerical data and does not incorporate qualitative historical accounts, which could provide valuable context.
+
+Additional Questions and Recommendations for Future Research
+
+1.To what extent did factors like family group size interact with class to influence survival rates?
+
+2.Were there differences in survival outcomes within the same class based on cabin location or proximity to lifeboats?
+
+3.How might survival patterns differ if broader societal norms or policies (e.g., "women and children first") were not in place?
+
+Future research could expand to a multivariate approach that includes other variables such as gender and age. 
+
+Numerical data could also be analyzed alongside historical qualitative data to contextualize survival disparities more effectively. 
+
+Additionally, survival data gathered from other maritime disasters may be compared to determine whether the patterns seen in the Titanic were unique to this sinking or indicative of broader societal behaviors.
